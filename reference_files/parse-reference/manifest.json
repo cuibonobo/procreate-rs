@@ -1,0 +1,58 @@
+{
+  "name": "Parse-reference",
+  "canvas_width": 768,
+  "canvas_height": 512,
+  "dpi": 64.0,
+  "color_profile": "Display P3",
+  "background_color": [
+    0.50056535,
+    0.5018944,
+    0.50377357,
+    1.0
+  ],
+  "background_hidden": false,
+  "animation": {
+    "frame_rate": 15,
+    "onion_skin_count": 12,
+    "onion_skin_opacity": 0.6000000238418579,
+    "playback_mode": 1
+  },
+  "layers": [
+    {
+      "uuid": "C25546E3-56D8-4E87-B37E-5988D036F970",
+      "name": "Green bottom left",
+      "opacity": 1.0,
+      "visible": true,
+      "locked": false,
+      "preserve_alpha": false,
+      "clipped": false,
+      "blend_mode": "Normal",
+      "layer_type": 0,
+      "file": "Green_bottom_left_C25546E3.png"
+    },
+    {
+      "uuid": "2DBAA061-5FDB-4970-A97B-E3914E3DBFEA",
+      "name": "Blue top right",
+      "opacity": 1.0,
+      "visible": true,
+      "locked": false,
+      "preserve_alpha": false,
+      "clipped": false,
+      "blend_mode": "Normal",
+      "layer_type": 0,
+      "file": "Blue_top_right_2DBAA061.png"
+    },
+    {
+      "uuid": "B95533D8-3E41-4726-A19E-8EB73EDCA59B",
+      "name": "Red top left, with black notch in top left corner",
+      "opacity": 1.0,
+      "visible": true,
+      "locked": false,
+      "preserve_alpha": false,
+      "clipped": false,
+      "blend_mode": "Normal",
+      "layer_type": 0,
+      "file": "Red_top_left__with_black_notch_in_top_left_corner_B95533D8.png"
+    }
+  ]
+}
