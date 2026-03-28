@@ -169,3 +169,53 @@ pub fn stitch_layer<R: Read + std::io::Seek>(
 
     Ok(image)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_tile_name_valid() {
+        // Filename format is "{row}~{col}.lz4"; function returns (col, row)
+        assert_eq!(parse_tile_name("0~0.lz4"), Some((0, 0)));
+        assert_eq!(parse_tile_name("2~4.lz4"), Some((4, 2)));
+        assert_eq!(parse_tile_name("10~3.lz4"), Some((3, 10)));
+    }
+
+    #[test]
+    fn parse_tile_name_invalid() {
+        assert_eq!(parse_tile_name(""), None);
+        assert_eq!(parse_tile_name("notafile"), None);
+        assert_eq!(parse_tile_name("1~2.png"), None);   // wrong extension
+        assert_eq!(parse_tile_name("nope.lz4"), None);  // no ~ separator
+        assert_eq!(parse_tile_name("a~b.lz4"), None);   // non-numeric parts
+    }
+
+    #[test]
+    fn unpremultiply_transparent_pixel_unchanged() {
+        // A fully transparent pixel (alpha=0) has no color, must stay zeroed
+        let mut pixel = [0u8, 0, 0, 0];
+        unpremultiply(&mut pixel);
+        assert_eq!(pixel, [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn unpremultiply_opaque_pixel_unchanged() {
+        // A fully opaque pixel should not be altered by un-premultiplication
+        let mut pixel = [100u8, 150, 200, 255];
+        unpremultiply(&mut pixel);
+        assert_eq!(pixel, [100, 150, 200, 255]);
+    }
+
+    #[test]
+    fn unpremultiply_semitransparent_pixel() {
+        // Premultiplied red at ~50% opacity: R*alpha stored as ~128
+        // After un-premultiplication the red channel should recover to ~255
+        let mut pixel = [128u8, 0, 0, 128];
+        unpremultiply(&mut pixel);
+        assert_eq!(pixel[0], 255, "red should un-premultiply to 255");
+        assert_eq!(pixel[1], 0);
+        assert_eq!(pixel[2], 0);
+        assert_eq!(pixel[3], 128, "alpha must not change");
+    }
+}

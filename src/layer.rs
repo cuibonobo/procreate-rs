@@ -109,3 +109,32 @@ impl BlendMode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blend_mode_from_i64_known_values() {
+        assert_eq!(BlendMode::from_i64(0), BlendMode::Normal);
+        assert_eq!(BlendMode::from_i64(1), BlendMode::Multiply);
+        assert_eq!(BlendMode::from_i64(2), BlendMode::Screen);
+        assert_eq!(BlendMode::from_i64(3), BlendMode::Add);
+        assert_eq!(BlendMode::from_i64(16), BlendMode::Luminosity);
+    }
+
+    #[test]
+    fn blend_mode_from_i64_unknown() {
+        assert_eq!(BlendMode::from_i64(99), BlendMode::Unknown(99));
+        assert_eq!(BlendMode::from_i64(-1), BlendMode::Unknown(-1));
+    }
+
+    #[test]
+    fn blend_mode_to_css() {
+        assert_eq!(BlendMode::Normal.to_css(), "normal");
+        assert_eq!(BlendMode::Multiply.to_css(), "multiply");
+        assert_eq!(BlendMode::SoftLight.to_css(), "soft-light");
+        assert_eq!(BlendMode::ColorDodge.to_css(), "color-dodge");
+        assert_eq!(BlendMode::Unknown(42).to_css(), "normal");
+    }
+}
