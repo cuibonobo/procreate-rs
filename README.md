@@ -120,6 +120,8 @@ let manifest_path = export_layers("MyFile.procreate", "output/", &options)?;
 }
 ```
 
+**`thumbnail.png`** — the fully-composed image thumbnail extracted directly from the `.procreate` archive's `QuickLook/` folder.
+
 ## Building
 
 Requires Rust 1.65+.
@@ -128,8 +130,6 @@ Requires Rust 1.65+.
 cargo build --release
 cargo test
 ```
-
-A devcontainer is provided (`.devcontainer/`) for environments without a local Rust toolchain.
 
 ## Format documentation
 

@@ -2,7 +2,9 @@
 
 use std::path::{Path, PathBuf};
 use std::fs;
+use std::io::Read;
 use serde::{Deserialize, Serialize};
+use zip::ZipArchive;
 use crate::{ProcreateDocument, Result};
 
 #[derive(Debug, Clone)]
@@ -127,6 +129,17 @@ pub fn export_layers<P: AsRef<Path>, Q: AsRef<Path>>(
     let json = serde_json::to_string_pretty(&manifest)
         .map_err(|e| crate::ProcreateError::InvalidDocument(e.to_string()))?;
     fs::write(&manifest_path, json)?;
+
+    // Extract the QuickLook thumbnail from the archive
+    let zip_file = fs::File::open(&procreate_path)?;
+    let mut zip = ZipArchive::new(zip_file)?;
+    if let Ok(mut entry) = zip.by_name("QuickLook/Thumbnail.png") {
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes)?;
+        drop(entry);
+        fs::write(output_dir.join("thumbnail.png"), &bytes)?;
+        println!("  Exported: thumbnail.png");
+    }
 
     Ok(manifest_path)
 }
