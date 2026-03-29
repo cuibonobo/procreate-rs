@@ -3,8 +3,7 @@ use procreate::{BlendMode, ProcreateDocument, ProcreateError};
 use std::path::PathBuf;
 
 fn reference_procreate() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("reference_files/parse-reference.procreate")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("reference_files/parse-reference.procreate")
 }
 
 fn reference_png(filename: &str) -> PathBuf {
@@ -31,16 +30,28 @@ fn background_color_is_mid_gray_opaque() {
     let [r, g, b, a] = doc.background_color;
 
     // Reference manifest shows ~0.5 gray, fully opaque
-    assert!((r - 0.5).abs() < 0.01, "red channel should be ~0.5, got {r}");
-    assert!((g - 0.5).abs() < 0.01, "green channel should be ~0.5, got {g}");
-    assert!((b - 0.5).abs() < 0.01, "blue channel should be ~0.5, got {b}");
+    assert!(
+        (r - 0.5).abs() < 0.01,
+        "red channel should be ~0.5, got {r}"
+    );
+    assert!(
+        (g - 0.5).abs() < 0.01,
+        "green channel should be ~0.5, got {g}"
+    );
+    assert!(
+        (b - 0.5).abs() < 0.01,
+        "blue channel should be ~0.5, got {b}"
+    );
     assert_eq!(a, 1.0);
 }
 
 #[test]
 fn animation_settings() {
     let doc = ProcreateDocument::from_path(reference_procreate()).unwrap();
-    let anim = doc.animation.as_ref().expect("animation settings should be present");
+    let anim = doc
+        .animation
+        .as_ref()
+        .expect("animation settings should be present");
 
     assert_eq!(anim.frame_rate, 15);
     assert_eq!(anim.playback_mode, 1); // 1 = ping-pong
@@ -55,7 +66,10 @@ fn layer_count_and_order() {
     // Layers are in bottom-to-top display order (index 0 = bottom)
     assert_eq!(doc.layers[0].name, "Green bottom left");
     assert_eq!(doc.layers[1].name, "Blue top right");
-    assert_eq!(doc.layers[2].name, "Red top left, with black notch in top left corner");
+    assert_eq!(
+        doc.layers[2].name,
+        "Red top left, with black notch in top left corner"
+    );
 }
 
 #[test]
@@ -72,11 +86,24 @@ fn layer_properties() {
     let doc = ProcreateDocument::from_path(reference_procreate()).unwrap();
 
     for layer in &doc.layers {
-        assert_eq!(layer.opacity, 1.0, "layer '{}' should have full opacity", layer.name);
+        assert_eq!(
+            layer.opacity, 1.0,
+            "layer '{}' should have full opacity",
+            layer.name
+        );
         assert!(layer.visible, "layer '{}' should be visible", layer.name);
         assert!(!layer.locked, "layer '{}' should not be locked", layer.name);
-        assert_eq!(layer.blend_mode, BlendMode::Normal, "layer '{}' should use Normal blend mode", layer.name);
-        assert_eq!(layer.layer_type, 0, "layer '{}' should be a normal layer type", layer.name);
+        assert_eq!(
+            layer.blend_mode,
+            BlendMode::Normal,
+            "layer '{}' should use Normal blend mode",
+            layer.name
+        );
+        assert_eq!(
+            layer.layer_type, 0,
+            "layer '{}' should be a normal layer type",
+            layer.name
+        );
     }
 }
 
@@ -94,10 +121,14 @@ fn layer_lookup_by_name_is_case_insensitive() {
 fn layer_lookup_by_uuid() {
     let doc = ProcreateDocument::from_path(reference_procreate()).unwrap();
 
-    let layer = doc.layer_by_uuid("C25546E3-56D8-4E87-B37E-5988D036F970").unwrap();
+    let layer = doc
+        .layer_by_uuid("C25546E3-56D8-4E87-B37E-5988D036F970")
+        .unwrap();
     assert_eq!(layer.name, "Green bottom left");
 
-    assert!(doc.layer_by_uuid("00000000-0000-0000-0000-000000000000").is_none());
+    assert!(doc
+        .layer_by_uuid("00000000-0000-0000-0000-000000000000")
+        .is_none());
 }
 
 #[test]
@@ -205,20 +236,29 @@ fn temp_export_dir(name: &str) -> PathBuf {
 #[test]
 fn export_layers_writes_pngs_and_manifest() {
     let out = temp_export_dir("export-default");
-    let manifest_path = export_layers(reference_procreate(), &out, &ExportOptions::default()).unwrap();
+    let manifest_path =
+        export_layers(reference_procreate(), &out, &ExportOptions::default()).unwrap();
 
     assert!(manifest_path.exists(), "manifest.json was not written");
     assert_eq!(manifest_path, out.join("manifest.json"));
-    assert!(out.join("thumbnail.png").exists(), "thumbnail.png was not written");
+    assert!(
+        out.join("thumbnail.png").exists(),
+        "thumbnail.png was not written"
+    );
 
     // All 3 layers should produce PNG files
     let pngs: Vec<_> = std::fs::read_dir(&out)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |x| x == "png"))
+        .filter(|e| e.path().extension().is_some_and(|x| x == "png"))
         .collect();
     // 3 layer PNGs + thumbnail
-    assert_eq!(pngs.len(), 4, "expected 4 PNG files (3 layers + thumbnail), got {}", pngs.len());
+    assert_eq!(
+        pngs.len(),
+        4,
+        "expected 4 PNG files (3 layers + thumbnail), got {}",
+        pngs.len()
+    );
 
     let _ = std::fs::remove_dir_all(&out);
 }
