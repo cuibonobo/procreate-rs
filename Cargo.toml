@@ -4,14 +4,6 @@ version = "0.1.0"
 edition = "2021"
 description = "Parse Procreate .procreate files into layer images"
 
-[[bin]]
-name = "procreate-export"
-path = "src/main.rs"
-
-[[bin]]
-name = "procreate-import"
-path = "src/bin/procreate-import.rs"
-
 [lib]
 name = "procreate"
 path = "src/lib.rs"
