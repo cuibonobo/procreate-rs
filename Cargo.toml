@@ -9,6 +9,8 @@ name = "procreate"
 path = "src/lib.rs"
 
 [dependencies]
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
 # ZIP archive reading/writing
 zip = "0.6"
 # LZ4 decompression/compression
