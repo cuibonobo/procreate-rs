@@ -101,6 +101,31 @@ const LAYER_BASE: usize = 18;
 /// Slots per layer: dict + UUID string + name string + transform bytes + contentsRect bytes
 const LAYER_STRIDE: usize = 5;
 
+/// Return the raw ICC profile bytes for well-known Procreate color profile names.
+///
+/// Procreate requires `SiColorProfileArchiveICCDataKey` to actually apply the color space;
+/// the name string alone is just a display label. Without ICC data the app falls back to sRGB.
+/// All blobs must be extracted from Procreate-generated files — macOS ColorSync ICC files use
+/// incompatible variants that cause Procreate to throw an ObjC exception during archive loading.
+fn icc_data_for_profile(name: &str) -> Option<&'static [u8]> {
+    match name {
+        // All ICC blobs extracted directly from Procreate-generated files — byte-verified.
+        // Procreate does not validate the ICC desc tag against the name key; it uses whatever
+        // raw bytes are stored in SiColorProfileArchiveICCDataKey.
+        "Display P3" =>
+            Some(include_bytes!("../icc/display_p3.icc")),
+        "sRGB IEC61966-2.1" =>
+            Some(include_bytes!("../icc/sRGB_IEC61966-2.1.icc")),
+        "sRGB v4 ICC Appearance" =>
+            Some(include_bytes!("../icc/sRGB_v4_ICC_Appearance.icc")),
+        "sRGB v4 ICC Preference" =>
+            Some(include_bytes!("../icc/sRGB_v4_ICC_Preference.icc")),
+        "sRGB v4 ICC Preference Display Class" =>
+            Some(include_bytes!("../icc/sRGB_v4_ICC_Preference_Display_Class.icc")),
+        _ => None,
+    }
+}
+
 /// 4×4 identity matrix encoded as 16 LE f64 values (128 bytes).
 /// Procreate stores layer transforms in this format.
 fn identity_transform() -> Vec<u8> {
@@ -130,11 +155,21 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
     // [5] color profile name string (before the dict that references it)
     objects[5] = Value::String(doc.color_profile.clone());
 
-    // [4] color profile dict
-    objects[4] = dict([
-        ("$class",                         uid(CLS_VALKYRIE_COLOR_PROFILE)),
-        ("SiColorProfileArchiveICCNameKey", uid(5)),
-    ]);
+    // [4] color profile dict.
+    // SiColorProfileArchiveICCDataKey must be stored as inline Data (not a UID reference) —
+    // Procreate uses decodeBytesForKey:returnedLength: which reads inline bytes only.
+    if let Some(icc) = icc_data_for_profile(&doc.color_profile) {
+        objects[4] = dict([
+            ("$class",                         uid(CLS_VALKYRIE_COLOR_PROFILE)),
+            ("SiColorProfileArchiveICCNameKey", uid(5)),
+            ("SiColorProfileArchiveICCDataKey", Value::Data(icc.to_vec())),
+        ]);
+    } else {
+        objects[4] = dict([
+            ("$class",                         uid(CLS_VALKYRIE_COLOR_PROFILE)),
+            ("SiColorProfileArchiveICCNameKey", uid(5)),
+        ]);
+    }
 
     // [6] background color — 16 bytes: four LE f32s (R, G, B, A)
     let mut bg_bytes = Vec::with_capacity(16);
