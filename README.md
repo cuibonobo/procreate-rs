@@ -17,21 +17,23 @@ A Rust library and CLI tool for reading and writing [Procreate](https://procreat
 ### CLI
 
 ```sh
-# Export all layers as PNGs + manifest.json into MyFile/
-procreate-export MyFile.procreate
+# Unpack all layers as PNGs + manifest.json into MyFile/
+procreate-unpack MyFile.procreate
 
-# Export to a specific directory
-procreate-export MyFile.procreate output/
+# Unpack to a specific directory
+procreate-unpack MyFile.procreate export MyFile-layers/
 
 # Print document metadata without rasterizing
-procreate-export MyFile.procreate --info
+procreate-unpack MyFile.procreate info
 
-# Import a manifest folder back into a .procreate file
-procreate-import MyFile/
-procreate-import MyFile/manifest.json output.procreate
+# Pack a manifest folder back into a .procreate file
+procreate-pack MyFile/
+procreate-pack MyFile/manifest.json output.procreate
 ```
 
-The `--info` output looks like:
+Pass `--help` to either tool for full usage information.
+
+The `info` output looks like:
 
 ```
 Name:          My Artwork
