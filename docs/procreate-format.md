@@ -214,6 +214,104 @@ To reconstruct the full RGBA image for a layer:
 
 ---
 
+## Color profile (ICC data)
+
+The root document's `colorProfile` key resolves to a `ValkyrieColorProfile` object with two keys:
+
+| Key | Type | Notes |
+|-----|------|-------|
+| `SiColorProfileArchiveICCNameKey` | String (UID ref) | The human-readable profile name, e.g. `"Display P3"` |
+| `SiColorProfileArchiveICCDataKey` | **Inline Data** | Raw ICC profile bytes (see critical note below) |
+
+### Critical: ICC data must be inline, not a UID reference
+
+`ValkyrieColorProfile` decodes ICC bytes using `decodeBytesForKey:returnedLength:`. This NSKeyedUnarchiver method reads bytes directly from an inline `Data` value in the object dictionary — it **does not follow UID references**. If the ICC bytes are stored as a UID pointing to a `Data` entry in `$objects`, Procreate will silently fail to decode the profile and throw an ObjC exception when trying to use it.
+
+Correct:
+```
+$objects[4] = {
+  "$class": UID(11),                         // → ValkyrieColorProfile
+  "SiColorProfileArchiveICCNameKey": UID(5), // → "Display P3"
+  "SiColorProfileArchiveICCDataKey": <data>  // inline bytes — correct
+}
+```
+
+Incorrect (causes crash):
+```
+$objects[4] = {
+  "$class": UID(11),
+  "SiColorProfileArchiveICCNameKey": UID(5),
+  "SiColorProfileArchiveICCDataKey": UID(18) // UID pointing to Data — WRONG
+}
+```
+
+### ICC data source
+
+The ICC bytes must be extracted from actual Procreate-generated files. macOS system ICC files (from `/Library/ColorSync/Profiles/`) use different profile content and have caused crashes in practice. Procreate does **not** validate that the ICC profile's internal `desc` tag matches the name key string — the name key is what Procreate displays in its UI.
+
+---
+
+## Writing .procreate files
+
+### NSKeyedArchiver `$objects` layout
+
+When building a `Document.archive`, all objects go in a flat `$objects` array. Every object dictionary must include a `$class` key pointing to a class-descriptor entry, or `NSKeyedUnarchiver` will throw. The following layout is required for Procreate compatibility:
+
+```
+[0]  "$null" sentinel
+[1]  root document dict            ($class → SilicaDocument)
+[2]  document name string
+[3]  canvas size string            ("{height, width}" — height first)
+[4]  color profile dict            ($class → ValkyrieColorProfile)
+[5]  color profile name string
+[6]  background color Data         (16 bytes: 4× LE f32 RGBA)
+[7]  layers NSMutableArray dict    ($class → NSMutableArray)
+[8]  class: SilicaDocument         (inheritance: SilicaDocument, ValkyrieDocument, NSObject)
+[9]  class: NSArray                (inheritance: NSArray, NSObject)
+[10] class: SilicaLayer            (inheritance: SilicaLayer, ValkyrieLayer, NSObject)
+[11] class: ValkyrieColorProfile   (inheritance: ValkyrieColorProfile, NSObject)
+[12] class: NSMutableArray         (inheritance: NSMutableArray, NSArray, NSObject)
+[13] unwrappedLayers NSArray dict  ($class → NSArray) — same items as layers
+[14] composite SilicaLayer dict    ($class → SilicaLayer)
+[15] composite UUID string
+[16] composite transform Data      (128 bytes: 4×4 identity matrix as 16× LE f64)
+[17] composite contentsRect Data   (32 bytes: zero CGRect as 4× LE f64)
+For each layer n (0-indexed), at base = 18 + n×5:
+[base+0]  layer dict               ($class → SilicaLayer)
+[base+1]  UUID string
+[base+2]  name string
+[base+3]  transform Data           (128 bytes: 4×4 identity matrix)
+[base+4]  contentsRect Data        (32 bytes: zero CGRect)
+```
+
+#### Composite layer
+
+Procreate requires a composite/sentinel layer (type=1) as an additional entry in both the `layers` array and the `unwrappedLayers` array. Its UUID is typically `"COMPOSITE"`. Without it, Procreate's MTKView compositor crashes during document load.
+
+#### `unwrappedLayers` array
+
+The root document dict must contain both a `layers` key (an NSMutableArray) and an `unwrappedLayers` key (an NSArray) pointing to the same set of layer UIDs. Procreate's compositor reads from `unwrappedLayers`; omitting it causes a crash.
+
+### bv41 tile encoding
+
+To encode pixel data into the bv41 container format:
+
+1. Convert the image to straight-alpha RGBA if it isn't already.
+2. **Premultiply alpha**: `stored_R = round(actual_R × A / 255)` (and same for G, B).
+3. **Transpose to column-major order**: the buffer stores pixels column by column, with x varying in the outer dimension and y in the inner.
+   - Pixel (x, y) goes at byte offset `(x × tile_height + y) × 4`.
+4. **Split into 65,536-byte chunks** (16,384 pixels per chunk — one quarter of a 256×256 tile).
+5. **LZ4-compress each chunk** as a dependent (chained) block — match offsets may reference previously written bytes across chunk boundaries, so all chunks share one decompression context.
+6. **Wrap each compressed chunk** in a 12-byte bv41 header:
+   - bytes 0–3: `"bv41"` magic
+   - bytes 4–7: uncompressed size (LE uint32)
+   - bytes 8–11: compressed size (LE uint32)
+7. **Append a sentinel**: a 12-byte chunk with magic `"bv4$"` and zero sizes.
+
+Tiles that are fully transparent may be omitted from the ZIP entirely — Procreate treats absent tiles as transparent.
+
+---
+
 ## Known quirks and gotchas
 
 | Issue | Detail |
@@ -225,3 +323,7 @@ To reconstruct the full RGBA image for a layer:
 | **Absent tiles** | Fully transparent tiles are often omitted from the ZIP. Treat missing tiles as transparent. |
 | **`hidden` is inverted** | The field is `hidden`, not `visible`. A layer with `hidden = false` is visible. |
 | **`contentsRect` coordinates** | Pixel coordinates within the full canvas, not relative to the tile grid. |
+| **ICC data must be inline** | `SiColorProfileArchiveICCDataKey` must be stored as an inline `Data` value in the color profile dict — not as a UID reference. `decodeBytesForKey:returnedLength:` does not follow UIDs. |
+| **Composite layer required** | The `layers` and `unwrappedLayers` arrays must include a type=1 composite/sentinel layer. Omitting it crashes Procreate's MTKView compositor. |
+| **`unwrappedLayers` required** | The root dict must have both `layers` (NSMutableArray) and `unwrappedLayers` (NSArray) keys with the same contents. |
+| **ICC bytes from Procreate** | ICC profile bytes must come from Procreate-generated files; macOS ColorSync ICC files are not compatible. |
