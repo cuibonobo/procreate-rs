@@ -30,9 +30,9 @@
 //!   [base+3]  transform Data  (128 bytes: 4×4 identity matrix as 16× LE f64)
 //!   [base+4]  contentsRect Data (32 bytes: zero CGRect as 4× LE f64)
 
+use crate::ProcreateError;
 use plist::{Dictionary, Integer, Uid, Value};
 use uuid::Uuid;
-use crate::ProcreateError;
 
 pub struct LayerSpec {
     pub uuid: String,
@@ -77,10 +77,18 @@ fn dict(pairs: impl IntoIterator<Item = (&'static str, Value)>) -> Value {
 
 fn class_desc(classname: &str, classes: &[&str]) -> Value {
     let mut d = Dictionary::new();
-    d.insert("$classname".to_string(), Value::String(classname.to_string()));
+    d.insert(
+        "$classname".to_string(),
+        Value::String(classname.to_string()),
+    );
     d.insert(
         "$classes".to_string(),
-        Value::Array(classes.iter().map(|&s| Value::String(s.to_string())).collect()),
+        Value::Array(
+            classes
+                .iter()
+                .map(|&s| Value::String(s.to_string()))
+                .collect(),
+        ),
     );
     Value::Dictionary(d)
 }
@@ -112,16 +120,13 @@ fn icc_data_for_profile(name: &str) -> Option<&'static [u8]> {
         // All ICC blobs extracted directly from Procreate-generated files — byte-verified.
         // Procreate does not validate the ICC desc tag against the name key; it uses whatever
         // raw bytes are stored in SiColorProfileArchiveICCDataKey.
-        "Display P3" =>
-            Some(include_bytes!("../icc/display_p3.icc")),
-        "sRGB IEC61966-2.1" =>
-            Some(include_bytes!("../icc/sRGB_IEC61966-2.1.icc")),
-        "sRGB v4 ICC Appearance" =>
-            Some(include_bytes!("../icc/sRGB_v4_ICC_Appearance.icc")),
-        "sRGB v4 ICC Preference" =>
-            Some(include_bytes!("../icc/sRGB_v4_ICC_Preference.icc")),
-        "sRGB v4 ICC Preference Display Class" =>
-            Some(include_bytes!("../icc/sRGB_v4_ICC_Preference_Display_Class.icc")),
+        "Display P3" => Some(include_bytes!("../icc/display_p3.icc")),
+        "sRGB IEC61966-2.1" => Some(include_bytes!("../icc/sRGB_IEC61966-2.1.icc")),
+        "sRGB v4 ICC Appearance" => Some(include_bytes!("../icc/sRGB_v4_ICC_Appearance.icc")),
+        "sRGB v4 ICC Preference" => Some(include_bytes!("../icc/sRGB_v4_ICC_Preference.icc")),
+        "sRGB v4 ICC Preference Display Class" => Some(include_bytes!(
+            "../icc/sRGB_v4_ICC_Preference_Display_Class.icc"
+        )),
         _ => None,
     }
 }
@@ -160,13 +165,13 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
     // Procreate uses decodeBytesForKey:returnedLength: which reads inline bytes only.
     if let Some(icc) = icc_data_for_profile(&doc.color_profile) {
         objects[4] = dict([
-            ("$class",                         uid(CLS_VALKYRIE_COLOR_PROFILE)),
+            ("$class", uid(CLS_VALKYRIE_COLOR_PROFILE)),
             ("SiColorProfileArchiveICCNameKey", uid(5)),
             ("SiColorProfileArchiveICCDataKey", Value::Data(icc.to_vec())),
         ]);
     } else {
         objects[4] = dict([
-            ("$class",                         uid(CLS_VALKYRIE_COLOR_PROFILE)),
+            ("$class", uid(CLS_VALKYRIE_COLOR_PROFILE)),
             ("SiColorProfileArchiveICCNameKey", uid(5)),
         ]);
     }
@@ -190,35 +195,35 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
 
     // [14] composite SilicaLayer dict — pre-composited cache; Procreate regenerates tiles
     objects[COMPOSITE_LAYER_IDX] = dict([
-        ("$class",              uid(CLS_SILICA_LAYER)),
-        ("UUID",                uid(COMPOSITE_UUID_IDX)),
-        ("name",                uid(0)),  // $null
-        ("opacity",             Value::Real(1.0)),
-        ("hidden",              Value::Boolean(false)),
-        ("locked",              Value::Boolean(false)),
-        ("preserve",            Value::Boolean(false)),
-        ("clipped",             Value::Boolean(false)),
-        ("blend",               int(0)),
-        ("type",                int(0)),
+        ("$class", uid(CLS_SILICA_LAYER)),
+        ("UUID", uid(COMPOSITE_UUID_IDX)),
+        ("name", uid(0)), // $null
+        ("opacity", Value::Real(1.0)),
+        ("hidden", Value::Boolean(false)),
+        ("locked", Value::Boolean(false)),
+        ("preserve", Value::Boolean(false)),
+        ("clipped", Value::Boolean(false)),
+        ("blend", int(0)),
+        ("type", int(0)),
         // Same sizeWidth/sizeHeight transposition as regular layers
-        ("sizeWidth",           int(doc.canvas_height as i64)),
-        ("sizeHeight",          int(doc.canvas_width as i64)),
-        ("document",            uid(1)),
-        ("version",             int(4)),
-        ("transform",           uid(COMPOSITE_TRANSFORM_IDX)),
-        ("contentsRect",        uid(COMPOSITE_CONTENTS_RECT_IDX)),
-        ("contentsRectValid",   Value::Boolean(false)),
-        ("mask",                uid(0)),
-        ("text",                uid(0)),
-        ("textPDF",             uid(0)),
-        ("textureSet",          uid(0)),
-        ("bundledImagePath",    uid(0)),
-        ("bundledMaskPath",     uid(0)),
-        ("bundledVideoPath",    uid(0)),
-        ("extendedBlend",       int(0)),
-        ("extendedBlend2",      int(0)),
+        ("sizeWidth", int(doc.canvas_height as i64)),
+        ("sizeHeight", int(doc.canvas_width as i64)),
+        ("document", uid(1)),
+        ("version", int(4)),
+        ("transform", uid(COMPOSITE_TRANSFORM_IDX)),
+        ("contentsRect", uid(COMPOSITE_CONTENTS_RECT_IDX)),
+        ("contentsRectValid", Value::Boolean(false)),
+        ("mask", uid(0)),
+        ("text", uid(0)),
+        ("textPDF", uid(0)),
+        ("textureSet", uid(0)),
+        ("bundledImagePath", uid(0)),
+        ("bundledMaskPath", uid(0)),
+        ("bundledVideoPath", uid(0)),
+        ("extendedBlend", int(0)),
+        ("extendedBlend2", int(0)),
         ("perspectiveAssisted", Value::Boolean(false)),
-        ("private",             Value::Boolean(false)),
+        ("private", Value::Boolean(false)),
         ("animationHeldLength", int(0)),
     ]);
 
@@ -228,26 +233,22 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
         &["SilicaDocument", "ValkyrieDocument", "NSObject"],
     );
     objects[CLS_NS_ARRAY] = class_desc("NSArray", &["NSArray", "NSObject"]);
-    objects[CLS_SILICA_LAYER] = class_desc(
-        "SilicaLayer",
-        &["SilicaLayer", "ValkyrieLayer", "NSObject"],
-    );
+    objects[CLS_SILICA_LAYER] =
+        class_desc("SilicaLayer", &["SilicaLayer", "ValkyrieLayer", "NSObject"]);
     objects[CLS_VALKYRIE_COLOR_PROFILE] = class_desc(
         "ValkyrieColorProfile",
         &["ValkyrieColorProfile", "NSObject"],
     );
-    objects[CLS_NS_MUTABLE_ARRAY] = class_desc(
-        "NSMutableArray",
-        &["NSMutableArray", "NSArray", "NSObject"],
-    );
+    objects[CLS_NS_MUTABLE_ARRAY] =
+        class_desc("NSMutableArray", &["NSMutableArray", "NSArray", "NSObject"]);
 
     // Layer objects: dict, UUID string, name string, transform bytes, contentsRect bytes
     let mut layer_uids: Vec<Value> = Vec::with_capacity(n);
     for (i, layer) in doc.layers.iter().enumerate() {
-        let base        = LAYER_BASE + i * LAYER_STRIDE;
-        let uuid_idx    = base + 1;
-        let name_idx    = base + 2;
-        let transform_idx    = base + 3;
+        let base = LAYER_BASE + i * LAYER_STRIDE;
+        let uuid_idx = base + 1;
+        let name_idx = base + 2;
+        let transform_idx = base + 3;
         let contents_rect_idx = base + 4;
 
         objects[uuid_idx] = Value::String(layer.uuid.clone());
@@ -258,41 +259,41 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
         objects[contents_rect_idx] = Value::Data(vec![0u8; 32]);
 
         objects[base] = dict([
-            ("$class",              uid(CLS_SILICA_LAYER)),
-            ("UUID",                uid(uuid_idx)),
-            ("name",                uid(name_idx)),
-            ("opacity",             Value::Real(layer.opacity)),
-            ("hidden",              Value::Boolean(!layer.visible)),
-            ("locked",              Value::Boolean(layer.locked)),
-            ("preserve",            Value::Boolean(layer.preserve_alpha)),
-            ("clipped",             Value::Boolean(layer.clipped)),
-            ("blend",               int(layer.blend_mode)),
-            ("type",                int(layer.layer_type)),
+            ("$class", uid(CLS_SILICA_LAYER)),
+            ("UUID", uid(uuid_idx)),
+            ("name", uid(name_idx)),
+            ("opacity", Value::Real(layer.opacity)),
+            ("hidden", Value::Boolean(!layer.visible)),
+            ("locked", Value::Boolean(layer.locked)),
+            ("preserve", Value::Boolean(layer.preserve_alpha)),
+            ("clipped", Value::Boolean(layer.clipped)),
+            ("blend", int(layer.blend_mode)),
+            ("type", int(layer.layer_type)),
             // Procreate quirk: sizeWidth = canvas height (row count × 256),
             // sizeHeight = canvas width (col count × 256) — same transposition as the
             // "{height, width}" size string. Wrong order → wrong tile grid → Metal crash.
-            ("sizeWidth",           int(layer.height as i64)),
-            ("sizeHeight",          int(layer.width as i64)),
+            ("sizeWidth", int(layer.height as i64)),
+            ("sizeHeight", int(layer.width as i64)),
             // Back-reference to the parent document (nil → crash in Procreate's render queue)
-            ("document",            uid(1)),
-            ("version",             int(4)),
+            ("document", uid(1)),
+            ("version", int(4)),
             // 4×4 identity transform matrix (nil → crash in Metal renderer)
-            ("transform",           uid(transform_idx)),
+            ("transform", uid(transform_idx)),
             // Bounding box of layer content; false = render full layer
-            ("contentsRect",        uid(contents_rect_idx)),
-            ("contentsRectValid",   Value::Boolean(false)),
+            ("contentsRect", uid(contents_rect_idx)),
+            ("contentsRectValid", Value::Boolean(false)),
             // Null-valued fields expected by the layer model
-            ("mask",                uid(0)),
-            ("text",                uid(0)),
-            ("textPDF",             uid(0)),
-            ("textureSet",          uid(0)),
-            ("bundledImagePath",    uid(0)),
-            ("bundledMaskPath",     uid(0)),
-            ("bundledVideoPath",    uid(0)),
-            ("extendedBlend",       int(0)),
-            ("extendedBlend2",      int(0)),
+            ("mask", uid(0)),
+            ("text", uid(0)),
+            ("textPDF", uid(0)),
+            ("textureSet", uid(0)),
+            ("bundledImagePath", uid(0)),
+            ("bundledMaskPath", uid(0)),
+            ("bundledVideoPath", uid(0)),
+            ("extendedBlend", int(0)),
+            ("extendedBlend2", int(0)),
             ("perspectiveAssisted", Value::Boolean(false)),
-            ("private",             Value::Boolean(false)),
+            ("private", Value::Boolean(false)),
             ("animationHeldLength", int(0)),
         ]);
 
@@ -317,31 +318,31 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
 
     // [1] root document dict
     objects[1] = dict([
-        ("$class",                       uid(CLS_SILICA_DOCUMENT)),
-        ("name",                         uid(2)),
-        ("size",                         uid(3)),
-        ("SilicaDocumentArchiveDPIKey",  Value::Real(doc.dpi)),
-        ("colorProfile",                 uid(4)),
-        ("backgroundColor",              uid(6)),
-        ("backgroundHidden",             Value::Boolean(doc.background_hidden)),
-        ("layers",                       uid(7)),
-        ("strokeCount",                  int(0)),
+        ("$class", uid(CLS_SILICA_DOCUMENT)),
+        ("name", uid(2)),
+        ("size", uid(3)),
+        ("SilicaDocumentArchiveDPIKey", Value::Real(doc.dpi)),
+        ("colorProfile", uid(4)),
+        ("backgroundColor", uid(6)),
+        ("backgroundHidden", Value::Boolean(doc.background_hidden)),
+        ("layers", uid(7)),
+        ("strokeCount", int(0)),
         // Required by Procreate's loader
-        ("tileSize",                     int(256)),
-        ("version",                      int(2)),
-        ("featureSet",                   int(1)),
+        ("tileSize", int(256)),
+        ("version", int(2)),
+        ("featureSet", int(1)),
         // Layer selection (nil → potential crash in canvas setup)
-        ("selectedLayer",                first_layer_uid.clone()),
-        ("primaryItem",                  first_layer_uid),
+        ("selectedLayer", first_layer_uid.clone()),
+        ("primaryItem", first_layer_uid),
         // Orientation: 4 = landscape-right (matches Procreate's real files)
-        ("orientation",                  int(4)),
+        ("orientation", int(4)),
         // Flat ordered list of layers used by the Metal compositor
-        ("unwrappedLayers",              uid(UNWRAPPED_LAYERS_IDX)),
+        ("unwrappedLayers", uid(UNWRAPPED_LAYERS_IDX)),
         // Pre-composited cache layer (Procreate regenerates tiles on first open)
-        ("composite",                    uid(COMPOSITE_LAYER_IDX)),
+        ("composite", uid(COMPOSITE_LAYER_IDX)),
         // No flip transforms
-        ("flippedHorizontally",          Value::Boolean(false)),
-        ("flippedVertically",            Value::Boolean(false)),
+        ("flippedHorizontally", Value::Boolean(false)),
+        ("flippedVertically", Value::Boolean(false)),
     ]);
 
     // Wrap in the NSKeyedArchiver envelope
@@ -349,10 +350,10 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
     top_ref.insert("root".to_string(), uid(1));
 
     let top = dict([
-        ("$version",  int(100000)),
+        ("$version", int(100000)),
         ("$archiver", Value::String("NSKeyedArchiver".to_string())),
-        ("$top",      Value::Dictionary(top_ref)),
-        ("$objects",  Value::Array(objects)),
+        ("$top", Value::Dictionary(top_ref)),
+        ("$objects", Value::Array(objects)),
     ]);
 
     let mut buf = Vec::new();
@@ -375,21 +376,19 @@ mod tests {
             color_profile: "sRGB IEC61966-2.1".to_string(),
             background_color: [1.0, 0.5, 0.0, 1.0],
             background_hidden: false,
-            layers: vec![
-                LayerSpec {
-                    uuid: "AAAAAAAA-0000-0000-0000-000000000000".to_string(),
-                    name: "Base".to_string(),
-                    opacity: 1.0,
-                    visible: true,
-                    locked: false,
-                    preserve_alpha: false,
-                    clipped: false,
-                    blend_mode: 0,
-                    layer_type: 0,
-                    width: 100,
-                    height: 200,
-                },
-            ],
+            layers: vec![LayerSpec {
+                uuid: "AAAAAAAA-0000-0000-0000-000000000000".to_string(),
+                name: "Base".to_string(),
+                opacity: 1.0,
+                visible: true,
+                locked: false,
+                preserve_alpha: false,
+                clipped: false,
+                blend_mode: 0,
+                layer_type: 0,
+                width: 100,
+                height: 200,
+            }],
         }
     }
 
@@ -412,7 +411,10 @@ mod tests {
         let archive = Archive::from_bytes(&bytes).unwrap();
         let root = archive.root().unwrap();
         assert_eq!(archive.get_string(root, "name"), Some("Test"));
-        assert_eq!(archive.get_f64(root, "SilicaDocumentArchiveDPIKey"), Some(72.0));
+        assert_eq!(
+            archive.get_f64(root, "SilicaDocumentArchiveDPIKey"),
+            Some(72.0)
+        );
     }
 
     #[test]
@@ -427,7 +429,10 @@ mod tests {
         assert_eq!(layers.len(), 1);
 
         let layer = layers[0];
-        assert_eq!(archive.get_string(layer, "UUID"), Some("AAAAAAAA-0000-0000-0000-000000000000"));
+        assert_eq!(
+            archive.get_string(layer, "UUID"),
+            Some("AAAAAAAA-0000-0000-0000-000000000000")
+        );
         assert_eq!(archive.get_string(layer, "name"), Some("Base"));
         assert_eq!(archive.get_f64(layer, "opacity"), Some(1.0));
         assert_eq!(archive.get_bool(layer, "hidden"), Some(false));
@@ -531,7 +536,10 @@ mod tests {
                 .and_then(|v| {
                     // name may be inline or a UID; resolve if needed
                     if let Some(uid) = v.as_uid() {
-                        objects.get(uid.get() as usize)?.as_string().map(|s| s.to_string())
+                        objects
+                            .get(uid.get() as usize)?
+                            .as_string()
+                            .map(|s| s.to_string())
                     } else {
                         v.as_string().map(|s| s.to_string())
                     }

@@ -1,11 +1,11 @@
 //! Export utilities: write per-layer PNGs and a JSON manifest.
 
-use std::path::{Path, PathBuf};
+use crate::{ProcreateDocument, Result};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
-use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
-use crate::{ProcreateDocument, Result};
 
 #[derive(Debug, Clone)]
 pub struct ExportOptions {
@@ -22,7 +22,7 @@ impl Default for ExportOptions {
         Self {
             visible_only: false,
             skip_special_layers: true,
-            unpremultiply: true,  // tile.rs handles this; flag is informational
+            unpremultiply: true, // tile.rs handles this; flag is informational
         }
     }
 }
@@ -87,9 +87,16 @@ pub fn export_layers<P: AsRef<Path>, Q: AsRef<Path>>(
         let img = doc.rasterize_layer(&procreate_path, &layer.uuid)?;
 
         // Build a safe filename: sanitize the layer name + short UUID
-        let safe_name = layer.name
+        let safe_name = layer
+            .name
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect::<String>();
         let uuid_short = &layer.uuid[..8];
         let filename = format!("{}_{}.png", safe_name, uuid_short);

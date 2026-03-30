@@ -63,19 +63,20 @@ pub fn decompress_tile(compressed: &[u8]) -> crate::Result<Vec<u8>> {
             u32::from_le_bytes(compressed[pos + 8..pos + 12].try_into().unwrap()) as usize;
         pos += HEADER_LEN;
 
-        let chunk = compressed
-            .get(pos..pos + compressed_size)
-            .ok_or_else(|| crate::ProcreateError::InvalidDocument("bv41 chunk data truncated".into()))?;
+        let chunk = compressed.get(pos..pos + compressed_size).ok_or_else(|| {
+            crate::ProcreateError::InvalidDocument("bv41 chunk data truncated".into())
+        })?;
 
         // decompress_with_dict uses `output` (all prior chunks) as the external
         // dictionary so match offsets in this chunk can reference earlier data.
-        let decompressed =
-            lz4_flex::block::decompress_with_dict(chunk, _uncompressed_size, &output)
-                .map_err(|e| {
-                    crate::ProcreateError::InvalidDocument(format!(
-                        "LZ4 block decompression failed: {e}"
-                    ))
-                })?;
+        let decompressed = lz4_flex::block::decompress_with_dict(
+            chunk,
+            _uncompressed_size,
+            &output,
+        )
+        .map_err(|e| {
+            crate::ProcreateError::InvalidDocument(format!("LZ4 block decompression failed: {e}"))
+        })?;
         output.extend_from_slice(&decompressed);
         pos += compressed_size;
     }
@@ -186,9 +187,9 @@ mod tests {
     fn parse_tile_name_invalid() {
         assert_eq!(parse_tile_name(""), None);
         assert_eq!(parse_tile_name("notafile"), None);
-        assert_eq!(parse_tile_name("1~2.png"), None);   // wrong extension
-        assert_eq!(parse_tile_name("nope.lz4"), None);  // no ~ separator
-        assert_eq!(parse_tile_name("a~b.lz4"), None);   // non-numeric parts
+        assert_eq!(parse_tile_name("1~2.png"), None); // wrong extension
+        assert_eq!(parse_tile_name("nope.lz4"), None); // no ~ separator
+        assert_eq!(parse_tile_name("a~b.lz4"), None); // non-numeric parts
     }
 
     #[test]

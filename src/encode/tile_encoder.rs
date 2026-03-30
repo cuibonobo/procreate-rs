@@ -52,7 +52,7 @@ pub fn encode_tile(pixels: &[u8]) -> Vec<u8> {
     for i in 0..(TILE_BYTES / CHUNK_SIZE) {
         let chunk_start = i * CHUNK_SIZE;
         let chunk = &colmajor[chunk_start..chunk_start + CHUNK_SIZE];
-        let dict  = &colmajor[..chunk_start]; // all prior decompressed bytes
+        let dict = &colmajor[..chunk_start]; // all prior decompressed bytes
         let compressed = lz4_flex::block::compress_with_dict(chunk, dict);
 
         blob.extend_from_slice(b"bv41");
