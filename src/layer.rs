@@ -62,6 +62,53 @@ pub enum BlendMode {
 }
 
 impl BlendMode {
+    pub fn to_i64(self) -> i64 {
+        match self {
+            Self::Normal     => 0,
+            Self::Multiply   => 1,
+            Self::Screen     => 2,
+            Self::Add        => 3,
+            Self::Overlay    => 4,
+            Self::SoftLight  => 5,
+            Self::HardLight  => 6,
+            Self::ColorDodge => 7,
+            Self::ColorBurn  => 8,
+            Self::Darken     => 9,
+            Self::Lighten    => 10,
+            Self::Difference => 11,
+            Self::Exclusion  => 12,
+            Self::Hue        => 13,
+            Self::Saturation => 14,
+            Self::Color      => 15,
+            Self::Luminosity => 16,
+            Self::Unknown(n) => n,
+        }
+    }
+
+    /// Parse a blend mode from its debug-format name (as written by the JSON exporter).
+    pub fn from_name(s: &str) -> Self {
+        match s {
+            "Normal"     => Self::Normal,
+            "Multiply"   => Self::Multiply,
+            "Screen"     => Self::Screen,
+            "Add"        => Self::Add,
+            "Overlay"    => Self::Overlay,
+            "SoftLight"  => Self::SoftLight,
+            "HardLight"  => Self::HardLight,
+            "ColorDodge" => Self::ColorDodge,
+            "ColorBurn"  => Self::ColorBurn,
+            "Darken"     => Self::Darken,
+            "Lighten"    => Self::Lighten,
+            "Difference" => Self::Difference,
+            "Exclusion"  => Self::Exclusion,
+            "Hue"        => Self::Hue,
+            "Saturation" => Self::Saturation,
+            "Color"      => Self::Color,
+            "Luminosity" => Self::Luminosity,
+            _            => Self::Normal,
+        }
+    }
+
     pub fn from_i64(v: i64) -> Self {
         match v {
             0  => Self::Normal,

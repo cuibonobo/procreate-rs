@@ -3,10 +3,14 @@ pub mod document;
 pub mod layer;
 pub mod tile;
 pub mod export;
+mod encode;
+pub mod builder;
+pub mod import;
 
 pub use document::ProcreateDocument;
 pub use layer::{Layer, BlendMode};
 pub use export::ExportOptions;
+pub use builder::{ProcreateDocumentBuilder, LayerConfig};
 
 use thiserror::Error;
 
@@ -32,6 +36,9 @@ pub enum ProcreateError {
 
     #[error("Missing field: {0}")]
     MissingField(String),
+
+    #[error("JSON error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 pub type Result<T> = std::result::Result<T, ProcreateError>;

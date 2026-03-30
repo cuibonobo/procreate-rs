@@ -8,16 +8,20 @@ description = "Parse Procreate .procreate files into layer images"
 name = "procreate-export"
 path = "src/main.rs"
 
+[[bin]]
+name = "procreate-import"
+path = "src/bin/procreate-import.rs"
+
 [lib]
 name = "procreate"
 path = "src/lib.rs"
 
 [dependencies]
-# ZIP archive reading
+# ZIP archive reading/writing
 zip = "0.6"
-# LZ4 decompression
+# LZ4 decompression/compression
 lz4_flex = "0.11"
-# Binary plist / NSKeyedArchiver parsing
+# Binary plist / NSKeyedArchiver parsing and writing
 plist = "1.6"
 # Image encoding (PNG output)
 image = "0.24"
@@ -27,3 +31,5 @@ anyhow = "1.0"
 # Serialization for our output types
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# UUID generation for new layers
+uuid = { version = "1", features = ["v4"] }
