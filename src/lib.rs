@@ -1,16 +1,16 @@
 pub mod archive;
+pub mod builder;
 pub mod document;
+mod encode;
+pub mod export;
+pub mod import;
 pub mod layer;
 pub mod tile;
-pub mod export;
-mod encode;
-pub mod builder;
-pub mod import;
 
+pub use builder::{LayerConfig, ProcreateDocumentBuilder};
 pub use document::ProcreateDocument;
-pub use layer::{Layer, BlendMode};
 pub use export::ExportOptions;
-pub use builder::{ProcreateDocumentBuilder, LayerConfig};
+pub use layer::{BlendMode, Layer};
 
 use thiserror::Error;
 

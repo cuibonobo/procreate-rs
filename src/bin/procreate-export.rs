@@ -4,10 +4,10 @@
 //!   procreate-export <file.procreate> [output_dir]
 //!   procreate-export <file.procreate> --info
 
+use procreate::export::export_layers;
+use procreate::{ExportOptions, ProcreateDocument};
 use std::env;
 use std::path::PathBuf;
-use procreate::{ProcreateDocument, ExportOptions};
-use procreate::export::export_layers;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -24,21 +24,32 @@ fn main() -> anyhow::Result<()> {
         // Print document metadata without rasterizing
         let doc = ProcreateDocument::from_path(&input)?;
         println!("Name:          {}", doc.name);
-        println!("Canvas:        {}×{} @ {} DPI", doc.canvas_width, doc.canvas_height, doc.dpi);
+        println!(
+            "Canvas:        {}×{} @ {} DPI",
+            doc.canvas_width, doc.canvas_height, doc.dpi
+        );
         println!("Color profile: {}", doc.color_profile);
-        println!("Background:    rgba({:.2}, {:.2}, {:.2}, {:.2}) hidden={}",
-            doc.background_color[0], doc.background_color[1],
-            doc.background_color[2], doc.background_color[3],
-            doc.background_hidden);
+        println!(
+            "Background:    rgba({:.2}, {:.2}, {:.2}, {:.2}) hidden={}",
+            doc.background_color[0],
+            doc.background_color[1],
+            doc.background_color[2],
+            doc.background_color[3],
+            doc.background_hidden
+        );
         println!("Stroke count:  {}", doc.stroke_count);
 
         if let Some(anim) = &doc.animation {
-            println!("Animation:     {} fps, mode={}", anim.frame_rate, anim.playback_mode);
+            println!(
+                "Animation:     {} fps, mode={}",
+                anim.frame_rate, anim.playback_mode
+            );
         }
 
         println!("\nLayers ({}):", doc.layers.len());
         for (i, layer) in doc.layers.iter().enumerate() {
-            println!("  [{i}] {:30} uuid={} opacity={:.2} visible={} type={}",
+            println!(
+                "  [{i}] {:30} uuid={} opacity={:.2} visible={} type={}",
                 layer.name,
                 &layer.uuid[..8],
                 layer.opacity,

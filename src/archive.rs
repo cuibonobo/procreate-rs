@@ -7,8 +7,8 @@
 //! This module provides a thin resolver so callers can navigate the
 //! graph without manually chasing UIDs.
 
-use plist::Value;
 use crate::{ProcreateError, Result};
+use plist::Value;
 
 pub struct Archive {
     objects: Vec<Value>,
@@ -17,10 +17,10 @@ pub struct Archive {
 impl Archive {
     /// Parse a binary plist NSKeyedArchiver blob.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
-        let root: Value = plist::from_bytes(bytes)
-            .map_err(ProcreateError::Plist)?;
+        let root: Value = plist::from_bytes(bytes).map_err(ProcreateError::Plist)?;
 
-        let dict = root.as_dictionary()
+        let dict = root
+            .as_dictionary()
             .ok_or_else(|| ProcreateError::InvalidDocument("root is not a dict".into()))?;
 
         let objects = dict
@@ -74,7 +74,8 @@ impl Archive {
     /// Get an f64 value (stored as real or integer in plist).
     pub fn get_f64(&self, obj: &Value, key: &str) -> Option<f64> {
         let v = self.get(obj, key)?;
-        v.as_real().or_else(|| v.as_signed_integer().map(|i| i as f64))
+        v.as_real()
+            .or_else(|| v.as_signed_integer().map(|i| i as f64))
     }
 
     /// Get a bool value.
@@ -130,7 +131,7 @@ impl Archive {
         }
         let mut out = [0f64; 16];
         for i in 0..16 {
-            out[i] = f64::from_le_bytes(bytes[i*8..(i+1)*8].try_into().ok()?);
+            out[i] = f64::from_le_bytes(bytes[i * 8..(i + 1) * 8].try_into().ok()?);
         }
         Some(out)
     }
