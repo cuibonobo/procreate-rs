@@ -171,12 +171,50 @@ The following color profiles are supported for writing (i.e., the correct ICC da
 
 ## Building
 
-Requires Rust 1.65+.
+Requires Rust stable (see `rust-toolchain.toml`).
 
 ```sh
 cargo build --release
 cargo test
 ```
+
+## Contributing
+
+### Prerequisites
+
+- Rust stable toolchain — install via [rustup](https://rustup.rs/)
+- [`just`](https://github.com/casey/just) — `cargo install just`
+
+### Workflow
+
+```sh
+just fmt       # auto-format
+just ci        # fmt-check + clippy + test (same as CI)
+```
+
+Run `just` with no arguments to list all available recipes.
+
+### Commit style
+
+Commits should follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>: <short description>
+
+Types: feat | fix | docs | refactor | test | ci | chore
+```
+
+Examples:
+
+```
+feat: add support for animation frame export
+fix: correct premultiplied alpha unpacking for Display P3
+docs: document bv41 tile header layout
+refactor: extract tile decoder into its own module
+test: add round-trip test for opacity preservation
+```
+
+Keep the subject line under 72 characters and use the imperative mood ("add", "fix", "extract" — not "added" or "fixes").
 
 ## Format documentation
 
