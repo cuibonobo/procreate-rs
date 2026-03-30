@@ -364,6 +364,7 @@ pub fn build_document_archive(doc: &DocumentSpec) -> crate::Result<Vec<u8>> {
 mod tests {
     use super::*;
     use crate::archive::Archive;
+    use plist::Value;
 
     fn minimal_doc() -> DocumentSpec {
         DocumentSpec {
@@ -430,5 +431,163 @@ mod tests {
         assert_eq!(archive.get_string(layer, "name"), Some("Base"));
         assert_eq!(archive.get_f64(layer, "opacity"), Some(1.0));
         assert_eq!(archive.get_bool(layer, "hidden"), Some(false));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// Find the ValkyrieColorProfile dict in a raw $objects array.
+    fn find_color_profile(objects: &[Value]) -> Option<&plist::Dictionary> {
+        objects.iter().find_map(|obj| {
+            let dict = obj.as_dictionary()?;
+            let cls_uid = dict.get("$class")?.as_uid()?;
+            let cls = objects.get(cls_uid.get() as usize)?.as_dictionary()?;
+            let cls_name = cls.get("$classname")?.as_string()?;
+            cls_name.contains("Valkyrie").then_some(dict)
+        })
+    }
+
+    /// Parse the raw $objects array out of a build_document_archive result.
+    fn raw_objects(bytes: &[u8]) -> Vec<Value> {
+        let root: Value = plist::from_bytes(bytes).unwrap();
+        root.into_dictionary()
+            .unwrap()
+            .remove("$objects")
+            .unwrap()
+            .into_array()
+            .unwrap()
+    }
+
+    // ── ICC storage tests ─────────────────────────────────────────────────────
+
+    /// Regression test for the inline-vs-UID bug: SiColorProfileArchiveICCDataKey
+    /// must be stored as a raw Data value directly in the dict, not as a UID
+    /// reference into $objects. Procreate calls decodeBytesForKey:returnedLength:
+    /// which reads inline bytes only; a UID reference causes an ObjC exception.
+    #[test]
+    fn icc_data_is_inline_not_uid_reference() {
+        let bytes = build_document_archive(&minimal_doc()).unwrap();
+        let objects = raw_objects(&bytes);
+        let cp = find_color_profile(&objects).expect("ValkyrieColorProfile not found");
+
+        let icc_val = cp
+            .get("SiColorProfileArchiveICCDataKey")
+            .expect("SiColorProfileArchiveICCDataKey missing for known profile");
+
+        assert!(
+            icc_val.as_data().is_some(),
+            "ICC data must be inline Data, not a UID — Procreate uses \
+             decodeBytesForKey:returnedLength: which does not follow UID references"
+        );
+        assert!(
+            icc_val.as_uid().is_none(),
+            "ICC data must not be a UID reference"
+        );
+    }
+
+    #[test]
+    fn known_profiles_embed_icc_data() {
+        let known = [
+            "Display P3",
+            "sRGB IEC61966-2.1",
+            "sRGB v4 ICC Appearance",
+            "sRGB v4 ICC Preference",
+            "sRGB v4 ICC Preference Display Class",
+        ];
+
+        for profile in known {
+            let mut doc = minimal_doc();
+            doc.color_profile = profile.to_string();
+            let bytes = build_document_archive(&doc).unwrap();
+            let objects = raw_objects(&bytes);
+            let cp = find_color_profile(&objects)
+                .unwrap_or_else(|| panic!("{profile}: ValkyrieColorProfile not found"));
+
+            let icc_val = cp
+                .get("SiColorProfileArchiveICCDataKey")
+                .unwrap_or_else(|| panic!("{profile}: SiColorProfileArchiveICCDataKey missing"));
+
+            let data = icc_val
+                .as_data()
+                .unwrap_or_else(|| panic!("{profile}: ICC data is not inline Data"));
+
+            assert!(!data.is_empty(), "{profile}: ICC data is empty");
+        }
+    }
+
+    #[test]
+    fn unknown_profile_has_no_icc_data_key() {
+        let mut doc = minimal_doc();
+        doc.color_profile = "Unknown Exotic Profile".to_string();
+        let bytes = build_document_archive(&doc).unwrap();
+        let objects = raw_objects(&bytes);
+        let cp = find_color_profile(&objects).expect("ValkyrieColorProfile not found");
+
+        assert!(
+            cp.get("SiColorProfileArchiveICCDataKey").is_none(),
+            "unknown profile should not have an ICC data key"
+        );
+        assert_eq!(
+            cp.get("SiColorProfileArchiveICCNameKey")
+                .and_then(|v| {
+                    // name may be inline or a UID; resolve if needed
+                    if let Some(uid) = v.as_uid() {
+                        objects.get(uid.get() as usize)?.as_string().map(|s| s.to_string())
+                    } else {
+                        v.as_string().map(|s| s.to_string())
+                    }
+                })
+                .as_deref(),
+            Some("Unknown Exotic Profile"),
+            "profile name should still be stored even when ICC data is unavailable"
+        );
+    }
+
+    // ── Structural invariant tests ────────────────────────────────────────────
+
+    #[test]
+    fn archive_has_composite_layer() {
+        let bytes = build_document_archive(&minimal_doc()).unwrap();
+        let archive = Archive::from_bytes(&bytes).unwrap();
+        let root = archive.root().unwrap();
+
+        let composite = archive
+            .get_optional(root, "composite")
+            .expect("composite key must be present and non-null");
+
+        // Must be a SilicaLayer dict with a UUID
+        assert!(
+            archive.get_string(composite, "UUID").is_some(),
+            "composite must be a SilicaLayer with a UUID"
+        );
+    }
+
+    #[test]
+    fn archive_has_unwrapped_layers_matching_layers() {
+        let bytes = build_document_archive(&minimal_doc()).unwrap();
+        let archive = Archive::from_bytes(&bytes).unwrap();
+        let root = archive.root().unwrap();
+
+        let layers_obj = archive.get_optional(root, "layers").unwrap();
+        let layers = archive.get_array(layers_obj).unwrap();
+
+        let uw_obj = archive
+            .get_optional(root, "unwrappedLayers")
+            .expect("unwrappedLayers must be present and non-null");
+        let uw_layers = archive.get_array(uw_obj).unwrap();
+
+        assert_eq!(
+            layers.len(),
+            uw_layers.len(),
+            "unwrappedLayers must contain the same number of entries as layers"
+        );
+
+        for (i, (l, uw)) in layers.iter().zip(uw_layers.iter()).enumerate() {
+            let l_uuid = archive.get_string(l, "UUID");
+            let uw_uuid = archive.get_string(uw, "UUID");
+            assert_eq!(
+                l_uuid, uw_uuid,
+                "layer[{i}] UUID mismatch between layers and unwrappedLayers"
+            );
+        }
     }
 }
