@@ -1,0 +1,3 @@
+[workspace]
+# Set to true and add a CARGO_REGISTRY_TOKEN secret when ready to publish to crates.io
+publish = false
